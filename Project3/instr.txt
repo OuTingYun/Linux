@@ -1,0 +1,13 @@
+*傳檔案*
+
+cp /boot/config-5.14.14 .config
+sudo make -j4 deb-pkg
+
+sudo dpkg -i ....deb*4
+sudo update-grub
+
+*重開機*
+
+gcc -o test test.c
+./test
+dmesg

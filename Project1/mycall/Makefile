@@ -1,0 +1,1 @@
+obj-y := get_pid_text_segment_addr.o
