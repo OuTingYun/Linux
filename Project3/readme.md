@@ -1,10 +1,10 @@
 # Linux - Project3
-:::info
-第23組
-107502533 張文耀
-107502504 歐亭昀
+>info
+>第23組
+>107502533 張文耀
+>107502504 歐亭昀
 107502502 林欣蓓
-:::
+
 
 ## 目標
 1. 取得程式 context switch 的次數
@@ -82,28 +82,7 @@ static __latent_entropy struct task_struct *copy_process(
 ```
 > 接著我們在 process 初始化時，也就是在 `copy_process()` 這個 funtion 中將我們剛剛增加的兩個欄位初始化為零(第21和22列)。
 ## process 狀態
-```graphviz
-digraph status {
-
-nodesep=1.2
-
-Start [label="- Start -\n調用 fork()\n創建新 process"]
-Exit [label="- Exit -\nEXIT_TRACE\n(exit_state)\n"]
-Ready [label="- Ready -\nTASK_RUNNING"]
-Running [label="- Running -\nTASK_RUNNING"]
-Waiting [label="- Waiting -\nTASK_INTERRUPTIBLE\nor\nTASK_UNINTERRUPTIBLE"]
-
-Start->{Ready} [label="    fork()"]
-Ready->{Running} [label="schedule()"]
-Running->{Ready} [label="\n被搶占"]
-Running->{Waiting} [label="IO or event wait"]
-Running->{Exit} [label="    do_exit()"]
-Waiting->{Ready} [label="IO or event completion"]
-{rank=same;Ready Running}
-{rank=same;Start Exit}
-
-}
-```
+![Untitled](graph/status.jpg)
 
 **在 task_struct 中的 __state 欄會記錄此 process 的狀態，常見的狀態有以下幾種**
 | 狀態 | 描述 |
@@ -291,114 +270,22 @@ static void __sched notrace __schedule(bool preempt)
 用途：切換到新的 mm 和新的 thread's register state and the stack
 
 user process 和 kernel process 有個差別就是 `mm_struct`，user process 有自己的 `mm_struct` 但是 kernel process 沒有。
-```graphviz
-digraph init {
-    label="user process 和 kernel process 的 mm 和 active_mm 的值";
-    rankdir=LR;
-    
-    subgraph cluster_kernel {
-        label ="kernel process";
-        k_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    subgraph cluster_user {
-        label ="user process";
-        u_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    mm_struct [label="mm_struct" shape=box];
-    null [label="NULL" shape=box];
 
-    k_t:f1->null;
-    k_t:f2->null;
-    u_t:f1->mm_struct;
-    u_t:f2->mm_struct;
-    
-    mm_struct -> k_t [style="invis"];
-}
-```
+![Untitled](graph/user_kernel_mm.jpg)
+
 但有時候 kernel process 還是會用到 `mm_struct`，像是 pgd 等等，但是 kernel process 的 `mm` 是 `null` 怎麼辦？那就跟 user process "借"來用。  
 
 當 user process context switch 到 kernel process 的時候，kernel process 的 `active_mm` 會指向 user process 的 `mm`，因為所有 process 的 kernel space 是共用的，因此 kernel process 可以合法的使用 user process 的 `mm_struct`。
-```graphviz
-digraph u_k {
-    label="user process context switch to kernel process"
-    rankdir=LR
-    node[shape=box]
-    
-    subgraph cluster_next {
-        label ="kernel process";
-        n_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    subgraph cluster_prev {
-        label ="user process";
-        p_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    mm_struct [label="mm_struct" shape=box];
-    null [label="NULL" shape=box];
 
-    n_t:f1->null;
-    n_t:f2->null [style=dashed];
-    p_t:f1->mm_struct;
-    p_t:f2->mm_struct;
-    
-    mm_struct -> n_t:f0 [style="invis"]
-    mm_struct -> n_t:f2 [dir=back color=blue]
-}
-```
+![Untitled](graph/1.jpg)
+
 而當 kernel process switch 到 kernel process 要把 `mm_strcut` 傳給下一個 process 使用。
-```graphviz
-digraph k_k {
-    label="kernel process context switch to kernel process"
-    rankdir=LR
-    node[shape=box]
-    
-    subgraph cluster_next {
-        label ="kernel process";
-        n_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    subgraph cluster_prev {
-        label ="kernel process";
-        p_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    mm_struct [label="mm_struct" shape=box];
-    null [label="NULL" shape=box];
-    
-    null->n_t:f1 [dir=back];
-    null->n_t:f2 [dir=back style=dashed];
-    p_t:f1->null;
-    p_t:f2->mm_struct [style=dashed];
-    
-    null -> p_t:f2 [dir=back color=blue]
-    mm_struct -> n_t:f2 [dir=back color=blue]
-}
-```
+
+![Untitled](graph/2.jpg)
+
 當 kernel process context switch 到 user process 時，kernel process 會把 `active_mm` 設回 `null`
-```graphviz
-digraph k_u {
-    label="kernel process context switch to user process"
-    rankdir=LR
-    node[shape=box]
-    
-    subgraph cluster_next {
-        label ="user process";
-        n_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    subgraph cluster_prev {
-        label ="kernel process";
-        p_t [label="\n|<f1>mm|<f2>active_mm|\n" shape=record];
-    }
-    mm_struct [label="mm_struct" shape=box];
-    null [label="NULL" shape=box];
-    mm_struct1 [label="mm_struct" shape=box];
-    
-    n_t:f1->mm_struct;
-    n_t:f2->mm_struct ;
-    p_t:f1->null;
-    p_t:f2->mm_struct1 [style=dashed];
-    
-    null -> n_t:f1 [style="invis"]
-    null -> p_t:f2 [dir=back color=blue]
-}
-```
+
+![Untitled](graph/3.jpg)
 
 ```c=
 static __always_inline struct rq *
@@ -483,14 +370,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 
 用途：切換register和stack
 
-```graphviz
-digraph s {
-    nodesep=0.6
-    node [shape=box style="rounded" margin=0.2 ]
-    
-    {rank=same;switch_to->__switch_to_asm->__switch_to}
-}
-```
+![Untitled](graph/4.jpg)
 
 <!--![](https://i.imgur.com/KDNtCmY.png =30%x)--> 
 
@@ -892,7 +772,7 @@ static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
 
 >顯示context switch 的次數
 
-:::spoiler my code
+spoiler my code
 > get_number_of_context_switches.c
 ```c=
 #include <linux/kernel.h>
@@ -936,7 +816,6 @@ int main ()
     while(1);
 }
 ```
-:::
 
 &nbsp;
 ![](https://i.imgur.com/EENegFq.png)
@@ -947,18 +826,12 @@ int main ()
 2. `nivcsw` : 非自願切換數
 3. `cs_count` : 從下圖可看出，此值為 $(nvcsw+nivcsw)*2+1$，其中因為 cs_count 因為來回都有做計算，所以會是 $(nvcsw+nivcsw)$ 的兩倍，而 $+1$ 是因為我們在 `print cs_count` 時，執行權在 `pid 1894`，所以會 $+1$。
 
-```sequence
-Note left of pid 1894: context_switch到\n其他process
-pid 1894-->其他process: (nvcsw/nivcsw)++
-pid 1894->其他process:cs_count++
-Note right of 其他process: context_switch\n到 pid 1894
-其他process->pid 1894:cs_count++
-```
+![u](graph/4.jpg)
 
 ### 第二題
 >顯示進入waiting queue的次數
 
-:::spoiler my code
+spoiler my code
 > get_number_of_entering_a_wait_queue.c
 ```c=
 #include <linux/kernel.h>
@@ -1022,7 +895,7 @@ int main()
     while(1);
 }
 ```
-:::
+
 
 &nbsp;
 ![](https://i.imgur.com/EgFOqeG.png)
