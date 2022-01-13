@@ -1,0 +1,17 @@
+scp -r ./mysyscall xinbei@192.168.229.1:/home/xinbei/Linux/example/linux-5.14.14
+scp ./Makefile xinbei@192.168.229.1:/home/xinbei/Linux/example/linux-5.14.14
+scp ./syscall_64.tbl xinbei@192.168.229.1:/home/xinbei/Linux/example/linux-5.14.14/arch/x86/entry/syscalls
+scp ./syscalls.h xinbei@192.168.229.1:/home/xinbei/Linux/example/linux-5.14.14/include/linux
+scp -r ./test xinbei@192.168.229.1:/home/xinbei/Linux/example
+
+cp /boot/config-5.14.14 .config
+sudo make -j4 deb-pkg
+
+sudo dpkg -i ....deb*4
+sudo update-grub
+
+*重開機*
+
+gcc -o test test.c
+./test
+dmesg
