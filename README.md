@@ -56,8 +56,8 @@ Reference to comiler kernel：
 
 ### Collaborators
 
-國立中央大學 張文耀
+國立中央大學 張XX
 
-國立中央大學 林欣蓓
+國立中央大學 林XX
 
 
